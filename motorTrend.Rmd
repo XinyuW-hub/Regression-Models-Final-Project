@@ -1,0 +1,83 @@
+---
+title: "Motor Trend Exploratory Data Analysis"
+sub-title: "Regression Models Coursera Course Final Project"
+author: "Xinyu W"
+output:
+  pdf_document: default
+  html_document:
+    keep_md: yes
+---
+
+## Overview
+This project analyze the data set "mtcars", which was extracted from *Motor Trend* US magazine for motor trend car road tests and contains 32 observations on 11 variables, and explore the relationship between a set of variables and miles per gallon (MPG) (outcome). The project works around two questions:
+
+* “Is an automatic or manual transmission better for MPG”
+* "Quantify the MPG difference between automatic and manual transmissions"
+
+## Executive Summary
+With t-test, we can see a significant lead of manual transmission over auto type by a difference *7.245*. But that difference is adjusted to *1.80* including confounding variables ('cyl', 'disp', 'wt', and 'hp'). These comparison can also be found in plot appendix at last.  
+
+```{r globalOpt, echo=FALSE, results='hide', message=FALSE}
+library(knitr)
+opts_chunk$set(fig.path = "Figs/", warning=FALSE, message = FALSE, echo=TRUE)
+library(ggplot2)
+library(dplyr)
+```
+## Data Analysis
+### Load Data
+```{r loadData}
+data("mtcars"); head(mtcars, n=2)
+```
+In this project, we will mainly work on "mpg" and "am" variables. Using **?mtcars**, we can find "am" stands for Transmission (0 = automatic, 1 = manual). Therefore, we better factor this variable and some other variables in order to find the difference between/among them later.
+```{r}
+mtcars$am <- factor(mtcars$am, labels = c("automatic", "manual"))
+mtcars$vs <- factor(mtcars$vs); mtcars$cyl <- factor(mtcars$cyl)
+mtcars$gear <- factor(mtcars$gear); mtcars$carb <- factor(mtcars$carb)
+```
+
+*1. “Is an automatic or manual transmission better for MPG”*  
+Referred to *Appendix*, we find there's a seemingly obvious increase in the distribution of MPG for manual transmission. In addition to the **Plot 1**, here we attempt to do a comparison numerically. The mean of automatic transmission (17.15) is lower than that of manual data (24.39), **which means that manual transmission cars preform better than automatic ones with regard to mpg.**
+```{r compareMean}
+aggregate(mpg~am, mtcars, mean)
+```
+
+*2. "Quantify the MPG difference between automatic and manual transmissions"*  
+From above, we can calculate that **the difference is 7.245 in favor of manual transmission cars.** However, to see whether the difference is significant, we should do a *hypothetical test*, and here we choose t-test.  
+**H0**: The difference between transmission types (0 and 1) is 0.  
+**H1**: The difference between transmission types (0 and 1) is not equal to 0.
+```{r ttest}
+hypoTest <- t.test(mpg~am, mtcars); hypoTest$p.value
+```
+
+From above, we see **p-value** is far less than .05, which allows us to *reject H0*. The difference (Again, **7.245**) is significant.  
+```{r}
+regression1 <- lm(mpg ~ am, data=mtcars);summary(regression1)
+```
+
+By running the regression model between 'mpg' and 'am', we see the *R-squared* is 0.36, which means 'am' alone only explains 36% of the variance. **Confounding variable** exist.  
+
+*3. Regression Analysis -- Confounding Variables*  
+We first need to decide which one/ones of them has/have significant correlation. 
+```{r relation}
+confoundTest <- aov(mpg~., data=mtcars); summary(confoundTest)
+```
+By doing the regression analysis, we find **'cyl', 'disp', 'wt', and 'hp'** stand out for their correlation besides 'am', thus we can start adjusting our regression model.
+```{r regression2}
+regression2 <- lm(mpg~am+cyl+disp+wt+hp, data=mtcars)
+anova(regression1, regression2)
+summary(regression2)
+```
+Regression model 2 here clearly explains the relationship better than the previous one through our variance table. With **Plot 2**, we can see the "Residual vs Fitted" plot shows little variance. It explains **86% (R-squared)** of the variance. With these four variables included, the manual transmission advantage falls to **a 1.80 difference** compared to auto transmission. 
+
+## Appendix
+**Plot 1 - "Boxplot of MPG by Transmission Types"**  
+```{r plot1}
+boxplot(mpg~am, data = mtcars, xlab = "Transmisson", ylab = "Miles per Gallon")
+```
+
+**plot2 - Regression Model Analysis with Confouding Data**
+```{r plot2}
+par(mfrow = c(2,2))
+plot(regression2)
+```
+
